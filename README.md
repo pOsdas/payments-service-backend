@@ -1,0 +1,1 @@
+poetry run python ensure_db.py

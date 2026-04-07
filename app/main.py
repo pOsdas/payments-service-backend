@@ -5,6 +5,8 @@ from fastapi import FastAPI
 
 from app.api.v1.routers.auth import router as auth_router
 from app.api.v1.routers.users import router as users_router
+from app.api.v1.routers.payments import router as payments_router
+from app.api.v1.routers.accounts import router as accounts_router
 from app.core.db_helper import db_helper
 
 
@@ -49,11 +51,12 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Test Backend",
         version="1.0.0",
-        license=lifespan
     )
 
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(users_router, prefix="/api/v1")
+    app.include_router(accounts_router, prefix="/api/v1")
+    app.include_router(payments_router, prefix="/api/v1")
 
     return app
 

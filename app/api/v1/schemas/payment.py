@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class PaymentResponse(BaseModel):
@@ -19,3 +19,20 @@ class PaymentWebhookRequest(BaseModel):
     account_id: int
     amount: Decimal
     signature: str = Field(min_length=64, max_length=64)
+
+    @field_validator("amount")
+    @classmethod
+    def validate_amount(cls, value: Decimal) -> Decimal:
+        if value <= 0:
+            raise ValueError("Amount must be greater than 0")
+        return value
+
+
+class PaymentWebhookResponse(BaseModel):
+    message: str
+    transaction_id: str
+    account_id: int
+    user_id: int
+    amount: Decimal
+    balance: Decimal
+    created: bool

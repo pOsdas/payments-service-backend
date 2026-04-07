@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -26,10 +27,29 @@ class AdminUserUpdateRequest(BaseModel):
     is_admin: bool | None = None
 
 
-class UserListResponseItem(BaseModel):
+class AdminUserResponse(BaseModel):
     id: int
     email: EmailStr
     full_name: str
     is_admin: bool
     created_at: datetime
     updated_at: datetime
+
+
+class AdminAccountResponse(BaseModel):
+    id: int
+    user_id: int
+    external_id: int
+    balance: Decimal
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdminUserWithAccountsResponse(BaseModel):
+    id: int
+    email: EmailStr
+    full_name: str
+    is_admin: bool
+    created_at: datetime
+    updated_at: datetime
+    accounts: list[AdminAccountResponse]

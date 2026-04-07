@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     debug: bool = False
     secret_key: str
     allowed_hosts: List[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
+    payment_webhook_secret: str
 
     db: DatabaseSettings = DatabaseSettings()
     run: RunModel = RunModel()

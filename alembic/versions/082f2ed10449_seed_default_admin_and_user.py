@@ -72,6 +72,16 @@ def upgrade() -> None:
         ],
     )
 
+    op.execute(
+        "SELECT setval('users_id_seq', (SELECT COALESCE(MAX(id), 1) FROM users), true)"
+    )
+    op.execute(
+        "SELECT setval('accounts_id_seq', (SELECT COALESCE(MAX(id), 1) FROM accounts), true)"
+    )
+    op.execute(
+        "SELECT setval('payments_id_seq', (SELECT COALESCE(MAX(id), 1) FROM payments), true)"
+    )
+
 
 def downgrade() -> None:
     op.execute(

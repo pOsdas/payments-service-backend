@@ -1,9 +1,10 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 
+from app.api.v1.routers.auth import router as auth_router
+from app.api.v1.routers.users import router as users_router
 from app.core.db_helper import db_helper
 
 
@@ -44,13 +45,17 @@ async def lifespan(app: FastAPI):
     await db_helper.dispose()
 
 
-app = FastAPI(
-    title="Test Backend API",
-    version="1.0.0",
-    lifespan=lifespan,
-)
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="Test Backend",
+        version="1.0.0",
+        license=lifespan
+    )
+
+    app.include_router(auth_router, prefix="/api/v1")
+    app.include_router(users_router, prefix="/api/v1")
+
+    return app
 
 
-@app.get("/health")
-async def healthcheck():
-    return {"status": "ok"}
+app = create_app()

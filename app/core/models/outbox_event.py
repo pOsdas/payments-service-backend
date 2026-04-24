@@ -11,6 +11,7 @@ from app.core.models import Base
 
 class OutboxEventStatus(str, enum.Enum):
     pending = "pending"
+    processing = "processing"
     published = "published"
     failed = "failed"
 

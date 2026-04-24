@@ -11,6 +11,19 @@ from app.core.models.payment import Payment, PaymentStatus
 from app.services.webhook import send_payment_webhook
 
 
+def build_payment_webhook_payload(payment: Payment) -> dict[str, Any]:
+    return {
+        "payment_id": str(payment.id),
+        "status": payment.status.value,
+        "amount": str(payment.amount),
+        "currency": payment.currency.value,
+        "description": payment.description,
+        "metadata": payment.metadata_json,
+        "created_at": payment.created_at.isoformat(),
+        "processed_at": payment.processed_at.isoformat() if payment.processed_at else None,
+    }
+
+
 async def process_payment(
     session: AsyncSession,
     message: dict[str, Any],
@@ -25,10 +38,16 @@ async def process_payment(
         raise ValueError(f"Payment {payment_id} not found")
 
     if payment.status != PaymentStatus.pending:
+        webhook_payload = build_payment_webhook_payload(payment)
+
+        await send_payment_webhook(
+            webhook_url=payment.webhook_url,
+            payload=webhook_payload,
+        )
+
         return {
-            "payment_id": str(payment.id),
-            "status": payment.status.value,
-            "message": "Payment has already been processed",
+            **webhook_payload,
+            "message": "Payment was already processed, webhook resent",
         }
 
     await asyncio.sleep(random.randint(2, 5))
@@ -41,16 +60,7 @@ async def process_payment(
     await session.commit()
     await session.refresh(payment)
 
-    webhook_payload = {
-        "payment_id": str(payment.id),
-        "status": payment.status.value,
-        "amount": str(payment.amount),
-        "currency": payment.currency.value,
-        "description": payment.description,
-        "metadata": payment.metadata_json,
-        "created_at": payment.created_at.isoformat(),
-        "processed_at": payment.processed_at.isoformat() if payment.processed_at else None,
-    }
+    webhook_payload = build_payment_webhook_payload(payment)
 
     await send_payment_webhook(
         webhook_url=payment.webhook_url,

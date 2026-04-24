@@ -41,5 +41,39 @@ services:
     volumes:
       - .:/app
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: payments_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  outbox_publisher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: payments_outbox_publisher
+    command: poetry run python -m app.workers.outbox_publisher
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - rabbitmq
+
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: payments_consumer
+    command: poetry run python -m app.workers.payment_consumer
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - rabbitmq
+
 volumes:
   postgres_data:

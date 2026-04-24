@@ -1,38 +1,63 @@
+# app/api/v1/schemas/payment.py
+
+from __future__ import annotations
+
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
+from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+
+from app.core.models.outbox_event import OutboxEventStatus
+from app.core.models.payment import PaymentCurrency, PaymentStatus
 
 
-class PaymentResponse(BaseModel):
-    id: int
-    transaction_id: str
-    user_id: int
-    account_id: int
-    amount: Decimal
+class PaymentCreateRequest(BaseModel):
+    amount: Decimal = Field(..., gt=0, decimal_places=2, max_digits=12)
+    currency: PaymentCurrency
+    description: str = Field(..., min_length=1, max_length=1000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    webhook_url: HttpUrl
+
+
+class PaymentCreateResponse(BaseModel):
+    payment_id: UUID
+    status: PaymentStatus
     created_at: datetime
 
 
-class PaymentWebhookRequest(BaseModel):
-    transaction_id: str = Field(min_length=1, max_length=128)
-    user_id: int
-    account_id: int
+class PaymentDetailResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
     amount: Decimal
-    signature: str = Field(min_length=64, max_length=64)
+    currency: PaymentCurrency
+    description: str
+    metadata_json: dict[str, Any]
+    status: PaymentStatus
+    idempotency_key: str
+    webhook_url: str
+    created_at: datetime
+    processed_at: datetime | None
 
-    @field_validator("amount")
-    @classmethod
-    def validate_amount(cls, value: Decimal) -> Decimal:
-        if value <= 0:
-            raise ValueError("Amount must be greater than 0")
-        return value
 
-
-class PaymentWebhookResponse(BaseModel):
-    message: str
-    transaction_id: str
-    account_id: int
-    user_id: int
+class OutboxEventPayload(BaseModel):
+    payment_id: UUID
     amount: Decimal
-    balance: Decimal
-    created: bool
+    currency: PaymentCurrency
+    description: str
+    metadata: dict[str, Any]
+    webhook_url: str
+
+
+class OutboxEventResponse(BaseModel):
+    id: UUID
+    event_type: str
+    aggregate_id: UUID
+    payload: dict[str, Any]
+    status: OutboxEventStatus
+    attempts: int
+    last_error: str | None
+    created_at: datetime
+    published_at: datetime | None

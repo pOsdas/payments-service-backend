@@ -56,7 +56,15 @@ class Settings(BaseSettings):
     debug: bool = False
     secret_key: str
     allowed_hosts: List[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
-    payment_webhook_secret: str
+
+    rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
+    outbox_poll_interval_seconds: int = 2
+    outbox_batch_size: int = 20
+
+    api_key: str
+
+    payment_processing_max_attempts: int = 3
+    payment_processing_retry_base_delay_seconds: int = 2
 
     db: DatabaseSettings = DatabaseSettings()
     run: RunModel = RunModel()

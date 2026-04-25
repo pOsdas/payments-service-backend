@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 app = FastStream(broker)
 
 
+@app.after_startup
+async def declare_queues() -> None:
+    await broker.declare_queue(PAYMENTS_DLQ_QUEUE)
+    logger.info("DLQ queue declared: %s", PAYMENTS_DLQ_QUEUE.name)
+
+
 async def publish_to_dlq(
     message: dict[str, Any],
     error: Exception,

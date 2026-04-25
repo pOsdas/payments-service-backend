@@ -3,7 +3,7 @@ version: "3.9"
 services:
   db:
     image: postgres:16-alpine
-    container_name: test_backend_db
+    container_name: payments_db
     restart: unless-stopped
     environment:
       POSTGRES_DB: test_backend
@@ -19,14 +19,32 @@ services:
       timeout: 5s
       retries: 10
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: payments_rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: test_backend_app
+    container_name: payments_api
     restart: unless-stopped
     depends_on:
       db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     ports:
       - "8000:8000"
@@ -34,46 +52,58 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/test_backend
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     command: >
-      sh -c "python ensure_db.py --env-file .env &&
-             alembic upgrade head &&
+      sh -c "alembic upgrade head &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000"
     volumes:
       - .:/app
-
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: payments_rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
 
   outbox_publisher:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: payments_outbox_publisher
-    command: poetry run python -m app.workers.outbox_publisher
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      app:
+        condition: service_started
     env_file:
       - .env
-    depends_on:
-      - db
-      - rabbitmq
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/test_backend
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    command: >
+      sh -c "python -m app.workers.outbox_publisher"
+    volumes:
+      - .:/app
 
   consumer:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: payments_consumer
-    command: poetry run python -m app.workers.payment_consumer
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      app:
+        condition: service_started
     env_file:
       - .env
-    depends_on:
-      - db
-      - rabbitmq
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/test_backend
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    command: >
+      sh -c "python -m app.workers.payment_consumer"
+    volumes:
+      - .:/app
 
 volumes:
   postgres_data:
